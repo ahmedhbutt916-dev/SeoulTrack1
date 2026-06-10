@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,24 +21,33 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.seoultrack.data.*
 import com.seoultrack.ui.components.NavTab
 import com.seoultrack.ui.theme.*
+import kotlinx.coroutines.launch
 
-// ── Sample Data ──────────────────────────────────────────────────────────────
+// ── Sample Data (fallback when no TMDB key) ──────────────────────────────────
 
 data class KDrama(
     val title: String,
     val year: Int,
     val rating: Float,
     val genre: String,
-    val status: String,  // "Watching", "Watched", "Plan to Watch", "On Hold", "Dropped"
+    val status: String,
     val episodes: Int,
     val currentEp: Int = 0,
-    val color: Color,    // placeholder poster color
+    val color: Color,
+    val posterUrl: String? = null,
+    val backdropUrl: String? = null,
+    val overview: String? = null,
 )
 
 val sampleDramas = listOf(
@@ -137,21 +147,24 @@ fun DramaPosterCard(
     Column(
         modifier = modifier.width(130.dp),
     ) {
-        // Poster placeholder with gradient
+        // Poster — loads TMDB image if available, else gradient placeholder
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            drama.color.copy(alpha = 0.8f),
-                            drama.color.copy(alpha = 0.4f),
-                            Color(0xFF0A0E1A).copy(alpha = 0.9f),
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+                .then(
+                    if (drama.posterUrl != null) Modifier
+                    else Modifier.background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                drama.color.copy(alpha = 0.8f),
+                                drama.color.copy(alpha = 0.4f),
+                                Color(0xFF0A0E1A).copy(alpha = 0.9f),
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+                        )
                     )
                 )
                 .border(
@@ -161,6 +174,15 @@ fun DramaPosterCard(
                 ),
             contentAlignment = Alignment.BottomStart,
         ) {
+            if (drama.posterUrl != null) {
+                AsyncImage(
+                    model = drama.posterUrl,
+                    contentDescription = drama.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+
             // Rating badge
             Box(
                 modifier = Modifier
@@ -189,7 +211,7 @@ fun DramaPosterCard(
                         .border(1.dp, Color(0x40FFFFFF), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("▶", fontSize = 14.sp, color = Color.White)
+                    Text("\u25B6", fontSize = 14.sp, color = Color.White)
                 }
             }
 
@@ -239,6 +261,104 @@ fun DramaPosterCard(
 }
 
 @Composable
+fun TmdbShowPosterCard(
+    show: TmdbShow,
+    modifier: Modifier = Modifier,
+) {
+    val posterUrl = TmdbClient.posterUrl(show.poster_path)
+    val rating = show.vote_average?.let { String.format("%.1f", it) } ?: "--"
+    val year = show.displayYear()
+    val title = show.displayTitle()
+
+    Column(
+        modifier = modifier.width(130.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .then(
+                    if (posterUrl != null) Modifier
+                    else Modifier.background(
+                        Brush.linearGradient(
+                            colors = listOf(Accent.copy(alpha = 0.5f), BgBase),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+                        )
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    color = Color(0x1AFFFFFF),
+                    shape = RoundedCornerShape(12.dp),
+                ),
+            contentAlignment = Alignment.BottomStart,
+        ) {
+            if (posterUrl != null) {
+                AsyncImage(
+                    model = posterUrl,
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                // Fallback text poster
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextMain,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(8.dp),
+                    )
+                }
+            }
+
+            // Rating badge
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xCC000000))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = "★ $rating",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = StatusPlan,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = title,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextMain,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            lineHeight = 16.sp,
+        )
+
+        Text(
+            text = if (year.isNotEmpty()) "$year" else "",
+            fontSize = 11.sp,
+            color = TextMuted,
+        )
+    }
+}
+
+@Composable
 fun WideDramaCard(drama: KDrama, modifier: Modifier = Modifier, showProgress: Boolean = false) {
     Row(
         modifier = modifier
@@ -257,19 +377,31 @@ fun WideDramaCard(drama: KDrama, modifier: Modifier = Modifier, showProgress: Bo
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Mini poster
+        // Mini poster — loads TMDB image if available
         Box(
             modifier = Modifier
                 .size(width = 56.dp, height = 78.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(drama.color.copy(alpha = 0.7f), drama.color.copy(alpha = 0.3f))
+                .then(
+                    if (drama.posterUrl != null) Modifier
+                    else Modifier.background(
+                        Brush.verticalGradient(
+                            colors = listOf(drama.color.copy(alpha = 0.7f), drama.color.copy(alpha = 0.3f))
+                        )
                     )
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Text("${drama.rating}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            if (drama.posterUrl != null) {
+                AsyncImage(
+                    model = drama.posterUrl,
+                    contentDescription = drama.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Text("${drama.rating}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
         }
 
         Column(modifier = Modifier.weight(1f)) {
@@ -331,6 +463,46 @@ fun WideDramaCard(drama: KDrama, modifier: Modifier = Modifier, showProgress: Bo
 
 @Composable
 fun DiscoverScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiKey = AppPreferences.getTmdbApiKey(context)
+
+    // TMDB data states
+    var trendingShows by remember { mutableStateOf<List<TmdbShow>>(emptyList()) }
+    var popularShows by remember { mutableStateOf<List<TmdbShow>>(emptyList()) }
+    var koreanDramas by remember { mutableStateOf<List<TmdbShow>>(emptyList()) }
+    var onTheAirShows by remember { mutableStateOf<List<TmdbShow>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+
+    // Fetch TMDB data when API key is available
+    LaunchedEffect(apiKey) {
+        if (apiKey.isNotBlank()) {
+            isLoading = true
+            loadError = null
+            try {
+                val trendingResp = TmdbClient.api.getTrendingTvDaily(apiKey)
+                trendingShows = trendingResp.results.filter { it.isKorean() || it.vote_average != null }
+                    .take(10)
+
+                val popularResp = TmdbClient.api.getPopularTv(apiKey)
+                popularShows = popularResp.results.take(10)
+
+                val kdramaResp = TmdbClient.api.discoverKoreanDramas(apiKey)
+                koreanDramas = kdramaResp.results.take(10)
+
+                val onAirResp = TmdbClient.api.getOnTheAir(apiKey)
+                onTheAirShows = onAirResp.results.filter { it.isKorean() }.take(6)
+            } catch (e: Exception) {
+                loadError = e.message
+            }
+            isLoading = false
+        }
+    }
+
+    // Featured show (first trending Korean drama or first trending)
+    val featuredShow = trendingShows.firstOrNull { it.isKorean() } ?: trendingShows.firstOrNull()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -353,7 +525,7 @@ fun DiscoverScreen() {
                 )
             )
             Text(
-                text = "What will you watch tonight?",
+                text = if (apiKey.isNotBlank()) "Powered by TMDB" else "What will you watch tonight?",
                 fontSize = 14.sp,
                 color = TextMuted,
             )
@@ -361,109 +533,297 @@ fun DiscoverScreen() {
 
         Spacer(Modifier.height(20.dp))
 
-        // Featured Banner
-        val featuredPulse = rememberInfiniteTransition(label = "featured")
-        val featuredAlpha by featuredPulse.animateFloat(
-            initialValue = 0.6f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(2000, easing = EaseInOutSine), RepeatMode.Reverse),
-            label = "featuredAlpha"
-        )
+        if (apiKey.isNotBlank() && !isLoading) {
+            // ── TMDB-powered content ──────────────────────────────────────────
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .height(180.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Accent.copy(alpha = 0.5f * featuredAlpha),
-                            OrbPurple.copy(alpha = 0.3f),
-                            BgBase,
-                        ),
-                        start = Offset.Zero,
-                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
-                    )
+            // Featured Banner (from TMDB)
+            if (featuredShow != null) {
+                val backdropUrl = TmdbClient.backdropUrl(featuredShow.backdrop_path)
+                val featuredTitle = featuredShow.displayTitle()
+                val featuredYear = featuredShow.displayYear()
+                val featuredRating = featuredShow.vote_average?.let { String.format("%.1f", it) } ?: "--"
+                val featuredGenre = featuredShow.genreNames()
+
+                val featuredPulse = rememberInfiniteTransition(label = "featured")
+                val featuredAlpha by featuredPulse.animateFloat(
+                    initialValue = 0.6f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(2000, easing = EaseInOutSine), RepeatMode.Reverse),
+                    label = "featuredAlpha"
                 )
-                .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(20.dp))
-                .padding(20.dp),
-        ) {
-            Column(modifier = Modifier.align(Alignment.BottomStart)) {
-                Text(
-                    text = "Trending Now",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Accent,
-                    letterSpacing = 1.sp,
-                )
-                Text(
-                    text = "Queen of Tears",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    color = TextMain,
-                )
-                Text(
-                    text = "Romance · Drama · 2024 · 16 episodes",
-                    fontSize = 12.sp,
-                    color = TextMuted,
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .then(
+                            if (backdropUrl != null) Modifier
+                            else Modifier.background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Accent.copy(alpha = 0.5f * featuredAlpha),
+                                        OrbPurple.copy(alpha = 0.3f),
+                                        BgBase,
+                                    ),
+                                    start = Offset.Zero,
+                                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+                                )
+                            )
+                        )
+                        .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(20.dp)),
+                ) {
+                    if (backdropUrl != null) {
+                        AsyncImage(
+                            model = backdropUrl,
+                            contentDescription = featuredTitle,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                        // Gradient overlay for text readability
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color(0xB30A0E1A),
+                                            Color(0xF00A0E1A),
+                                        )
+                                    )
+                                )
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = "Trending Now",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Accent,
+                            letterSpacing = 1.sp,
+                        )
+                        Text(
+                            text = featuredTitle,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextMain,
+                        )
+                        Text(
+                            text = "$featuredGenre · $featuredYear · ★ $featuredRating",
+                            fontSize = 12.sp,
+                            color = TextMuted,
+                        )
+                    }
+
+                    // Play button
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(20.dp)
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Accent)
+                            .border(1.dp, Color(0x40FFFFFF), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("\u25B6", fontSize = 18.sp, color = Color.White)
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp)
                 )
             }
 
-            // Play button
+            // Trending Today
+            if (trendingShows.isNotEmpty()) {
+                SectionHeader("Trending Today", "See All")
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                ) {
+                    items(trendingShows) { show ->
+                        TmdbShowPosterCard(show)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            // Korean Dramas (TMDB discover)
+            if (koreanDramas.isNotEmpty()) {
+                SectionHeader("K-Dramas", "See All")
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                ) {
+                    items(koreanDramas) { show ->
+                        TmdbShowPosterCard(show)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            // Popular TV
+            if (popularShows.isNotEmpty()) {
+                SectionHeader("Popular TV", "See All")
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                ) {
+                    items(popularShows) { show ->
+                        TmdbShowPosterCard(show)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            // Currently Airing K-Dramas
+            if (onTheAirShows.isNotEmpty()) {
+                SectionHeader("Currently Airing", "See All")
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                ) {
+                    items(onTheAirShows) { show ->
+                        TmdbShowPosterCard(show)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+
+            // Error state
+            if (loadError != null) {
+                GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    Text(
+                        text = "Could not load TMDB data: $loadError",
+                        fontSize = 13.sp,
+                        color = Accent,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Check your API key in Settings → TMDB Configuration",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                    )
+                }
+            }
+
+        } else if (isLoading) {
+            // Loading state
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Accent)
-                    .border(1.dp, Color(0x40FFFFFF), CircleShape),
+                    .fillMaxWidth()
+                    .height(200.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("▶", fontSize = 18.sp, color = Color.White)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Loading from TMDB...", fontSize = 14.sp, color = TextMuted)
+                }
             }
-        }
+        } else {
+            // ── Fallback: sample data when no TMDB key ──────────────────────
 
-        Spacer(Modifier.height(24.dp))
+            // Featured Banner
+            val featuredPulse = rememberInfiniteTransition(label = "featured")
+            val featuredAlpha by featuredPulse.animateFloat(
+                initialValue = 0.6f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(2000, easing = EaseInOutSine), RepeatMode.Reverse),
+                label = "featuredAlpha"
+            )
 
-        // Trending Now row
-        SectionHeader("Trending Now", "See All")
-        Spacer(Modifier.height(8.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp),
-        ) {
-            items(trendingDramas) { drama ->
-                DramaPosterCard(drama)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Accent.copy(alpha = 0.5f * featuredAlpha),
+                                OrbPurple.copy(alpha = 0.3f),
+                                BgBase,
+                            ),
+                            start = Offset.Zero,
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
+                        )
+                    )
+                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+            ) {
+                Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                    Text(
+                        text = "Add Your TMDB Key",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Accent,
+                        letterSpacing = 1.sp,
+                    )
+                    Text(
+                        text = "Unlock Real Show Data",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        color = TextMain,
+                    )
+                    Text(
+                        text = "Go to Settings → TMDB Configuration to enter your API key",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                    )
+                }
             }
-        }
 
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
-        // Popular K-Dramas grid
-        SectionHeader("Popular K-Dramas", "See All")
-        Spacer(Modifier.height(8.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp),
-        ) {
-            items(sampleDramas.take(6)) { drama ->
-                DramaPosterCard(drama)
+            // Trending Now row (sample)
+            SectionHeader("Trending Now", "See All")
+            Spacer(Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp),
+            ) {
+                items(trendingDramas) { drama ->
+                    DramaPosterCard(drama)
+                }
             }
-        }
 
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
-        // Recently Added
-        SectionHeader("Recently Added")
-        Spacer(Modifier.height(8.dp))
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            sampleDramas.drop(6).take(4).forEach { drama ->
-                WideDramaCard(drama)
+            // Popular K-Dramas grid (sample)
+            SectionHeader("Popular K-Dramas", "See All")
+            Spacer(Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp),
+            ) {
+                items(sampleDramas.take(6)) { drama ->
+                    DramaPosterCard(drama)
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Recently Added (sample)
+            SectionHeader("Recently Added")
+            Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                sampleDramas.drop(6).take(4).forEach { drama ->
+                    WideDramaCard(drama)
+                }
             }
         }
 
@@ -568,9 +928,9 @@ fun LibraryScreen() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📭", fontSize = 32.sp)
-                        Spacer(Modifier.height(8.dp))
                         Text("No dramas here yet", fontSize = 14.sp, color = TextMuted)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Add shows from the Discover tab", fontSize = 12.sp, color = TextMuted)
                     }
                 }
             } else {
@@ -644,7 +1004,7 @@ fun ProfileScreen() {
                     .border(2.dp, Accent.copy(alpha = 0.3f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("🇰🇷", fontSize = 32.sp)
+                Text("\uD83C\uDDF0\uD83C\uDDF7", fontSize = 32.sp)
             }
 
             Spacer(Modifier.height(12.dp))
@@ -737,7 +1097,7 @@ fun ProfileScreen() {
         Spacer(Modifier.height(8.dp))
         GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
             val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-            val activity = listOf(2, 4, 1, 3, 5, 8, 6) // episodes per day
+            val activity = listOf(2, 4, 1, 3, 5, 8, 6)
             val maxActivity = activity.maxOrNull() ?: 1
 
             Row(
@@ -808,13 +1168,19 @@ private fun ProfileStatItem(label: String, value: String, color: Color, modifier
 
 @Composable
 fun SettingsScreen() {
-    var darkModeEnabled by remember { mutableStateOf(true) }
-    var oledMode by remember { mutableStateOf(false) }
-    var notificationsEnabled by remember { mutableStateOf(true) }
-    var autoPlayNext by remember { mutableStateOf(true) }
-    var subtitleEnabled by remember { mutableStateOf(true) }
-    var selectedQuality by remember { mutableStateOf("Auto") }
-    var selectedSubtitleLang by remember { mutableStateOf("Korean") }
+    val context = LocalContext.current
+    var darkModeEnabled by remember { mutableStateOf(AppPreferences.isDarkMode(context)) }
+    var oledMode by remember { mutableStateOf(AppPreferences.isOledMode(context)) }
+    var notificationsEnabled by remember { mutableStateOf(AppPreferences.isNotificationsEnabled(context)) }
+    var autoPlayNext by remember { mutableStateOf(AppPreferences.isAutoPlay(context)) }
+    var subtitleEnabled by remember { mutableStateOf(AppPreferences.isSubtitlesEnabled(context)) }
+    var selectedQuality by remember { mutableStateOf(AppPreferences.getStreamingQuality(context)) }
+    var selectedSubtitleLang by remember { mutableStateOf(AppPreferences.getSubtitleLanguage(context)) }
+
+    // TMDB API key state
+    var tmdbApiKey by remember { mutableStateOf(TextFieldValue(AppPreferences.getTmdbApiKey(context))) }
+    var tmdbKeySaved by remember { mutableStateOf(AppPreferences.hasTmdbApiKey(context)) }
+    var tmdbKeyVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -833,16 +1199,161 @@ fun SettingsScreen() {
 
         Spacer(Modifier.height(20.dp))
 
+        // ── TMDB Configuration Section ──────────────────────────────────────
+        SectionHeader("TMDB Configuration")
+        Spacer(Modifier.height(8.dp))
+        GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+            // API Key input
+            Text(
+                text = "TMDB API Key",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextMain,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Enter your TMDB API key (v3 auth) to load real show data. Get one free at themoviedb.org/settings/api",
+                fontSize = 11.sp,
+                color = TextMuted,
+                lineHeight = 16.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+
+            // API Key input field
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x0AFFFFFF))
+                    .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                BasicTextField(
+                    value = tmdbApiKey,
+                    onValueChange = { tmdbApiKey = it },
+                    modifier = Modifier.weight(1f),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = TextMain,
+                        fontSize = 14.sp,
+                    ),
+                    singleLine = true,
+                    visualTransformation = if (tmdbKeyVisible) androidx.compose.ui.text.input.VisualTransformation.None
+                    else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    decorationBox = { inner ->
+                        if (tmdbApiKey.text.isEmpty()) {
+                            Text(
+                                text = "Paste your API key here...",
+                                color = TextMuted,
+                                fontSize = 14.sp,
+                            )
+                        }
+                        inner()
+                    }
+                )
+
+                // Show/hide toggle
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x0FFFFFFF))
+                        .clickable { tmdbKeyVisible = !tmdbKeyVisible },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (tmdbKeyVisible) "\uD83D\uDC41" else "\uD83D\uDC41\u200D\uD83D\uDD8C",
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Save button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Accent.copy(alpha = 0.15f))
+                        .border(1.dp, Accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .clickable {
+                            AppPreferences.setTmdbApiKey(context, tmdbApiKey.text)
+                            tmdbKeySaved = tmdbApiKey.text.isNotBlank()
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Save Key",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Accent,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x0AFFFFFF))
+                        .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(8.dp))
+                        .clickable {
+                            AppPreferences.setTmdbApiKey(context, "")
+                            tmdbApiKey = TextFieldValue("")
+                            tmdbKeySaved = false
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Clear Key",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextMuted,
+                    )
+                }
+            }
+
+            // Status indicator
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(if (tmdbKeySaved) StatusWatched else Color(0xFF636E72))
+                )
+                Text(
+                    text = if (tmdbKeySaved) "API key saved — Discover tab will load real data" else "No API key — showing sample data",
+                    fontSize = 11.sp,
+                    color = if (tmdbKeySaved) StatusWatched else TextMuted,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
         // Appearance Section
         SectionHeader("Appearance")
         Spacer(Modifier.height(8.dp))
         GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
             SettingsToggleItem("Dark Mode", "Use dark theme throughout the app", darkModeEnabled) {
                 darkModeEnabled = it
+                AppPreferences.setDarkMode(context, it)
             }
             SettingsDivider()
             SettingsToggleItem("OLED Black", "True black background for OLED displays", oledMode) {
                 oledMode = it
+                AppPreferences.setOledMode(context, it)
             }
         }
 
@@ -854,18 +1365,22 @@ fun SettingsScreen() {
         GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
             SettingsToggleItem("Auto-Play Next Episode", "Automatically play the next episode", autoPlayNext) {
                 autoPlayNext = it
+                AppPreferences.setAutoPlay(context, it)
             }
             SettingsDivider()
             SettingsToggleItem("Subtitles", "Show subtitles by default", subtitleEnabled) {
                 subtitleEnabled = it
+                AppPreferences.setSubtitlesEnabled(context, it)
             }
             SettingsDivider()
             SettingsSelectItem("Streaming Quality", selectedQuality, listOf("Auto", "1080p", "720p", "480p")) {
                 selectedQuality = it
+                AppPreferences.setStreamingQuality(context, it)
             }
             SettingsDivider()
             SettingsSelectItem("Subtitle Language", selectedSubtitleLang, listOf("Korean", "English", "Chinese", "Japanese", "Off")) {
                 selectedSubtitleLang = it
+                AppPreferences.setSubtitleLanguage(context, it)
             }
         }
 
@@ -877,6 +1392,7 @@ fun SettingsScreen() {
         GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
             SettingsToggleItem("Push Notifications", "Get notified about new episodes", notificationsEnabled) {
                 notificationsEnabled = it
+                AppPreferences.setNotificationsEnabled(context, it)
             }
         }
 
@@ -899,9 +1415,11 @@ fun SettingsScreen() {
         SectionHeader("About")
         Spacer(Modifier.height(8.dp))
         GlassCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-            SettingsInfoItem("Version", "1.0.0")
+            SettingsInfoItem("Version", "1.1.0")
             SettingsDivider()
             SettingsInfoItem("Build", "debug")
+            SettingsDivider()
+            SettingsInfoItem("Data Source", if (tmdbKeySaved) "TMDB API" else "Sample Data")
             SettingsDivider()
             SettingsActionItem("Open Source Licenses", "View third-party licenses")
             SettingsDivider()
@@ -912,7 +1430,7 @@ fun SettingsScreen() {
 
         // App signature
         Text(
-            text = "SeoulTrack v1.0.0 · Made with ❤️ for K-Drama fans",
+            text = "SeoulTrack v1.1.0 · Made with \u2764\uFE0F for K-Drama fans",
             fontSize = 11.sp,
             color = TextMuted.copy(alpha = 0.5f),
             modifier = Modifier.fillMaxWidth(),
@@ -1005,7 +1523,7 @@ private fun SettingsSelectItem(
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = if (expanded) " ▲" else " ▼",
+                    text = if (expanded) " \u25B2" else " \u25BC",
                     fontSize = 10.sp,
                     color = TextMuted,
                 )
@@ -1071,7 +1589,7 @@ private fun SettingsActionItem(title: String, subtitle: String) {
                 color = TextMuted,
             )
         }
-        Text("›", fontSize = 18.sp, color = TextMuted)
+        Text("\u203A", fontSize = 18.sp, color = TextMuted)
     }
 }
 

@@ -102,7 +102,7 @@ fun SeoulTrackNavBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
+            .padding(bottom = 24.dp)
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.BottomStart,
     ) {
@@ -110,6 +110,30 @@ fun SeoulTrackNavBar(
         // ── LEFT: Navigation pill bar ───────────────────────────────────────────
         val navShape = if (navCollapsed) CircleShape else RoundedCornerShape(30.dp)
 
+        // ── Floating shadow behind the nav bar ────────────────────────────
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .then(
+                    if (navCollapsed) Modifier.size(60.dp)
+                    else Modifier
+                        .fillMaxWidth()
+                        .padding(end = 76.dp)
+                )
+                .heightIn(min = 60.dp, max = 60.dp)
+                .drawBehind {
+                    // Soft floating shadow — dark blurred ellipse
+                    val cr = if (navCollapsed) size.minDimension / 2f else 30.dp.toPx()
+                    drawRoundRect(
+                        color = Color(0x55000000),
+                        topLeft = Offset(0f, 6.dp.toPx()),
+                        size = Size(size.width, size.height),
+                        cornerRadius = CornerRadius(cr, cr),
+                    )
+                }
+        )
+
+        // ── Main glass nav bar ────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -385,6 +409,23 @@ private fun SearchBubbleFab(
     )
     val fabShape = RoundedCornerShape(fabRadius)
 
+    // ── Floating shadow behind the search bubble ──────────────────────────
+    Box(
+        modifier = modifier
+            .width(fabWidth)
+            .height(60.dp)
+            .drawBehind {
+                // Soft floating shadow
+                drawRoundRect(
+                    color = Color(0x55000000),
+                    topLeft = Offset(0f, 6.dp.toPx()),
+                    size = Size(size.width, size.height),
+                    cornerRadius = CornerRadius(fabRadius.toPx(), fabRadius.toPx()),
+                )
+            }
+    )
+
+    // ── Main glass search bubble ──────────────────────────────────────────
     Box(
         modifier = modifier
             .width(fabWidth)

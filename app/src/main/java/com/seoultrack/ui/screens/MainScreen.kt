@@ -14,9 +14,8 @@ import com.seoultrack.ui.components.SeoulTrackNavBar
  *
  * Layout mirrors the HTML structure:
  *   - AmbientBackground (position: fixed, z-index: 0)
- *   - Header (position: fixed, z-index: 90)
- *   - Content area (scrollable, padding-bottom: 96px)
- *   - SeoulTrackNavBar (position: fixed, bottom: 0, z-index: 100)
+ *   - Content area (scrollable, padding-bottom for floating nav)
+ *   - SeoulTrackNavBar (position: fixed, bottom: 24dp, z-index: 100) — floating
  */
 @Composable
 fun MainScreen() {
@@ -31,7 +30,8 @@ fun MainScreen() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 92.dp)  // matches HTML's padding-bottom: 96px
+                // 60dp nav + 24dp bottom padding + 16dp extra breathing room
+                .padding(bottom = 100.dp)
         ) {
             when (currentTab) {
                 NavTab.DISCOVER  -> DiscoverScreen()
@@ -41,7 +41,7 @@ fun MainScreen() {
             }
         }
 
-        // Layer 2 — Bottom navigation (always on top)
+        // Layer 2 — Bottom navigation (always on top, floating)
         SeoulTrackNavBar(
             currentTab    = currentTab,
             onTabSelected = { currentTab = it },
