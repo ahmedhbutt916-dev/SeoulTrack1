@@ -23,18 +23,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.zIndex
-import com.seoultrack.R
 import com.seoultrack.ui.theme.*
-import kotlin.math.abs
 
 // Nav tab identifiers
 enum class NavTab { DISCOVER, LIBRARY, PROFILE, SETTINGS }
@@ -481,7 +475,7 @@ private fun SearchBubbleFab(
     }
 }
 
-// ── SVG Icons (inline vectors matching the HTML SVGs) ──────────────────────
+// ── Polished Vector Icons ────────────────────────────────────────────────────
 
 @Composable
 fun NavIcon(tab: NavTab, tint: Color, modifier: Modifier = Modifier.size(22.dp)) {
@@ -493,85 +487,323 @@ fun NavIcon(tab: NavTab, tint: Color, modifier: Modifier = Modifier.size(22.dp))
     }
 }
 
+/**
+ * Discover — A compass rose with directional diamond and tick marks.
+ * Professional look with a north diamond, cardinal ticks, and fine details.
+ */
 @Composable
 private fun DiscoverIcon(tint: Color, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val cx = size.width / 2; val cy = size.height / 2; val r = size.minDimension / 2 - 1f
-        drawCircle(color = tint, radius = r, style = Stroke(width = 2f))
-        // Compass arrow — simplified
-        drawLine(tint, Offset(cx, cy - r*0.5f), Offset(cx + r*0.35f, cy + r*0.35f), 2f)
-        drawLine(tint, Offset(cx, cy - r*0.5f), Offset(cx - r*0.2f, cy + r*0.15f), 2f)
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val r = size.minDimension / 2f - 2f
+
+        // Outer ring
+        drawCircle(color = tint, radius = r, style = Stroke(width = 1.8f))
+
+        // Inner ring
+        drawCircle(color = tint.copy(alpha = 0.3f), radius = r * 0.7f, style = Stroke(width = 0.8f))
+
+        // Cardinal tick marks (N, E, S, W)
+        for (i in 0 until 4) {
+            val angle = Math.toRadians(i * 90.0 - 90.0) // start from top
+            val x1 = cx + (r * 0.72f) * Math.cos(angle).toFloat()
+            val y1 = cy + (r * 0.72f) * Math.sin(angle).toFloat()
+            val x2 = cx + (r * 0.92f) * Math.cos(angle).toFloat()
+            val y2 = cy + (r * 0.92f) * Math.sin(angle).toFloat()
+            drawLine(tint, Offset(x1, y1), Offset(x2, y2), 1.8f)
+        }
+
+        // Intercardinal tick marks (NE, SE, SW, NW)
+        for (i in 0 until 4) {
+            val angle = Math.toRadians(i * 90.0 - 45.0)
+            val x1 = cx + (r * 0.78f) * Math.cos(angle).toFloat()
+            val y1 = cy + (r * 0.78f) * Math.sin(angle).toFloat()
+            val x2 = cx + (r * 0.88f) * Math.cos(angle).toFloat()
+            val y2 = cy + (r * 0.88f) * Math.sin(angle).toFloat()
+            drawLine(tint.copy(alpha = 0.5f), Offset(x1, y1), Offset(x2, y2), 1f)
+        }
+
+        // North diamond pointer — a sleek arrow pointing up
+        val diamond = Path().apply {
+            moveTo(cx, cy - r * 0.6f)       // top point
+            lineTo(cx + r * 0.12f, cy - r * 0.35f)
+            lineTo(cx, cy)                    // center
+            lineTo(cx - r * 0.12f, cy - r * 0.35f)
+            close()
+        }
+        drawPath(diamond, color = tint)
+
+        // South pointer — lighter, thinner
+        val south = Path().apply {
+            moveTo(cx, cy + r * 0.6f)       // bottom point
+            lineTo(cx + r * 0.08f, cy + r * 0.35f)
+            lineTo(cx, cy)                    // center
+            lineTo(cx - r * 0.08f, cy + r * 0.35f)
+            close()
+        }
+        drawPath(south, color = tint.copy(alpha = 0.4f))
+
+        // Center dot
+        drawCircle(color = tint, radius = 2f, center = Offset(cx, cy))
     }
 }
 
+/**
+ * Library — Two overlapping bookmark shapes with a play indicator.
+ * Polished with rounded inner details and page lines.
+ */
 @Composable
 private fun LibraryIcon(tint: Color, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val w = size.width; val h = size.height
-        // Bookmark shape
-        val path = Path().apply {
-            moveTo(w*0.25f, h*0.1f)
-            lineTo(w*0.75f, h*0.1f)
-            lineTo(w*0.75f, h*0.9f)
-            lineTo(w*0.50f, h*0.7f)
-            lineTo(w*0.25f, h*0.9f)
+        val w = size.width
+        val h = size.height
+
+        // Back book (slightly offset)
+        val backBook = Path().apply {
+            moveTo(w * 0.32f, h * 0.12f)
+            lineTo(w * 0.82f, h * 0.12f)
+            lineTo(w * 0.82f, h * 0.92f)
+            lineTo(w * 0.57f, h * 0.74f)
+            lineTo(w * 0.32f, h * 0.92f)
             close()
         }
-        drawPath(path, color = Color.Transparent, style = androidx.compose.ui.graphics.drawscope.Fill)
-        drawPath(path, color = tint, style = Stroke(width = 2f))
+        drawPath(backBook, color = tint.copy(alpha = 0.25f), style = Stroke(width = 1.5f))
+
+        // Front book (bookmark shape with notch)
+        val frontBook = Path().apply {
+            moveTo(w * 0.18f, h * 0.08f)
+            lineTo(w * 0.68f, h * 0.08f)
+            lineTo(w * 0.68f, h * 0.88f)
+            lineTo(w * 0.43f, h * 0.70f)
+            lineTo(w * 0.18f, h * 0.88f)
+            close()
+        }
+        drawPath(frontBook, color = tint, style = Stroke(width = 1.8f))
+
+        // Page lines on front book
+        drawLine(
+            tint.copy(alpha = 0.4f),
+            Offset(w * 0.28f, h * 0.24f),
+            Offset(w * 0.58f, h * 0.24f),
+            1f
+        )
+        drawLine(
+            tint.copy(alpha = 0.3f),
+            Offset(w * 0.28f, h * 0.34f),
+            Offset(w * 0.52f, h * 0.34f),
+            1f
+        )
+        drawLine(
+            tint.copy(alpha = 0.2f),
+            Offset(w * 0.28f, h * 0.44f),
+            Offset(w * 0.48f, h * 0.44f),
+            1f
+        )
     }
 }
 
+/**
+ * Profile — Sleek person silhouette with a subtle ring.
+ * Modern design with a filled head circle and smooth body curve.
+ */
 @Composable
 private fun ProfileIcon(tint: Color, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val cx = size.width / 2; val cy = size.height * 0.35f
-        drawCircle(color = tint, radius = size.width * 0.2f, center = Offset(cx, cy), style = Stroke(width = 2f))
-        val path = Path().apply {
-            moveTo(cx - size.width*0.38f, size.height*0.9f)
+        val cx = size.width / 2f
+        val headRadius = size.minDimension * 0.2f
+        val headCy = size.height * 0.32f
+
+        // Head — filled circle with border
+        drawCircle(
+            color = tint.copy(alpha = 0.15f),
+            radius = headRadius + 2f,
+            center = Offset(cx, headCy),
+        )
+        drawCircle(
+            color = tint,
+            radius = headRadius,
+            center = Offset(cx, headCy),
+            style = Stroke(width = 1.8f),
+        )
+
+        // Body — smooth curved shoulder arc
+        val bodyPath = Path().apply {
+            moveTo(cx - size.width * 0.4f, size.height * 0.92f)
             cubicTo(
-                cx - size.width*0.38f, size.height*0.65f,
-                cx + size.width*0.38f, size.height*0.65f,
-                cx + size.width*0.38f, size.height*0.9f
+                cx - size.width * 0.4f, size.height * 0.58f,
+                cx - size.width * 0.18f, size.height * 0.52f,
+                cx, size.height * 0.54f,
+            )
+            cubicTo(
+                cx + size.width * 0.18f, size.height * 0.52f,
+                cx + size.width * 0.4f, size.height * 0.58f,
+                cx + size.width * 0.4f, size.height * 0.92f,
             )
         }
-        drawPath(path, color = tint, style = Stroke(width = 2f))
+        drawPath(
+            bodyPath,
+            color = tint,
+            style = Stroke(width = 1.8f),
+        )
+
+        // Subtle status dot on shoulder
+        drawCircle(
+            color = tint.copy(alpha = 0.3f),
+            radius = 2.5f,
+            center = Offset(cx + size.width * 0.15f, size.height * 0.6f),
+        )
     }
 }
 
+/**
+ * Settings — Professional gear/cog with smooth teeth.
+ * Clean design with proper tooth geometry and inner detail.
+ */
 @Composable
 private fun SettingsIcon(tint: Color, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val cx = size.width / 2; val cy = size.height / 2; val r = size.minDimension * 0.18f; val R = size.minDimension * 0.4f
-        drawCircle(color = tint, radius = r, center = Offset(cx, cy), style = Stroke(width = 2f))
-        drawCircle(color = tint, radius = R, center = Offset(cx, cy), style = Stroke(width = 2f))
-        // Gear teeth (8 tick marks)
-        for (i in 0 until 8) {
-            val angle = Math.toRadians(i * 45.0)
-            val x1 = cx + (R - 3f) * Math.cos(angle).toFloat()
-            val y1 = cy + (R - 3f) * Math.sin(angle).toFloat()
-            val x2 = cx + (R + 3f) * Math.cos(angle).toFloat()
-            val y2 = cy + (R + 3f) * Math.sin(angle).toFloat()
-            drawLine(tint, Offset(x1, y1), Offset(x2, y2), 2.5f)
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val outerR = size.minDimension * 0.44f
+        val innerR = size.minDimension * 0.30f
+        val toothDepth = size.minDimension * 0.08f
+        val teethCount = 8
+
+        // Draw the gear body using path
+        val gearPath = Path().apply {
+            for (i in 0 until teethCount) {
+                val baseAngle = (i.toFloat() / teethCount) * 2f * Math.PI.toFloat()
+                val halfTooth = (1f / teethCount) * Math.PI.toFloat() * 0.35f
+
+                // Tooth outer edge
+                val a1 = baseAngle - halfTooth * 1.4f
+                val a2 = baseAngle - halfTooth
+                val a3 = baseAngle + halfTooth
+                val a4 = baseAngle + halfTooth * 1.4f
+
+                val outerIR = outerR - toothDepth
+
+                if (i == 0) {
+                    moveTo(
+                        cx + outerIR * kotlin.math.cos(a1),
+                        cy + outerIR * kotlin.math.sin(a1),
+                    )
+                }
+
+                // Rise to tooth
+                lineTo(
+                    cx + outerIR * kotlin.math.cos(a2),
+                    cy + outerIR * kotlin.math.sin(a2),
+                )
+                // Tooth top
+                lineTo(
+                    cx + outerR * kotlin.math.cos(a2 + halfTooth * 0.2f),
+                    cy + outerR * kotlin.math.sin(a2 + halfTooth * 0.2f),
+                )
+                lineTo(
+                    cx + outerR * kotlin.math.cos(a3 - halfTooth * 0.2f),
+                    cy + outerR * kotlin.math.sin(a3 - halfTooth * 0.2f),
+                )
+                // Fall from tooth
+                lineTo(
+                    cx + outerIR * kotlin.math.cos(a3),
+                    cy + outerIR * kotlin.math.sin(a3),
+                )
+                // Valley between teeth
+                lineTo(
+                    cx + outerIR * kotlin.math.cos(a4),
+                    cy + outerIR * kotlin.math.sin(a4),
+                )
+            }
+            close()
+        }
+        drawPath(gearPath, color = tint, style = Stroke(width = 1.8f))
+
+        // Inner circle
+        drawCircle(
+            color = tint,
+            radius = innerR,
+            center = Offset(cx, cy),
+            style = Stroke(width = 1.5f),
+        )
+
+        // Center dot
+        drawCircle(color = tint.copy(alpha = 0.4f), radius = 2.5f, center = Offset(cx, cy))
+
+        // Decorative inner notches
+        for (i in 0 until 4) {
+            val angle = Math.toRadians(i * 90.0 + 45.0)
+            val x1 = cx + (innerR * 0.5f) * Math.cos(angle).toFloat()
+            val y1 = cy + (innerR * 0.5f) * Math.sin(angle).toFloat()
+            val x2 = cx + (innerR * 0.85f) * Math.cos(angle).toFloat()
+            val y2 = cy + (innerR * 0.85f) * Math.sin(angle).toFloat()
+            drawLine(tint.copy(alpha = 0.3f), Offset(x1, y1), Offset(x2, y2), 1f)
         }
     }
 }
 
+/**
+ * Search — Professional magnifying glass with lens shine.
+ */
 @Composable
 private fun SearchIcon(tint: Color, modifier: Modifier = Modifier.size(24.dp)) {
     Canvas(modifier) {
-        val cx = size.width * 0.42f; val cy = size.height * 0.42f; val r = size.minDimension * 0.28f
-        drawCircle(color = tint, radius = r, center = Offset(cx, cy), style = Stroke(width = 2f))
-        drawLine(tint, Offset(cx + r*0.7f, cy + r*0.7f), Offset(size.width*0.88f, size.height*0.88f), 2.5f)
+        val cx = size.width * 0.40f
+        val cy = size.height * 0.40f
+        val r = size.minDimension * 0.30f
+
+        // Lens circle — thicker stroke for prominence
+        drawCircle(
+            color = tint,
+            radius = r,
+            center = Offset(cx, cy),
+            style = Stroke(width = 2.2f),
+        )
+
+        // Lens shine — small arc highlight
+        val shinePath = Path().apply {
+            val shineR = r * 0.7f
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(
+                    center = Offset(cx - r * 0.2f, cy - r * 0.2f),
+                    radius = shineR,
+                ),
+                startAngleDegrees = 200f,
+                sweepAngleDegrees = 60f,
+                forceMoveTo = true,
+            )
+        }
+        drawPath(shinePath, color = tint.copy(alpha = 0.25f), style = Stroke(width = 1.5f))
+
+        // Handle — tapered line from bottom-right of lens
+        val handleStart = Offset(
+            cx + r * 0.72f,
+            cy + r * 0.72f,
+        )
+        val handleEnd = Offset(
+            size.width * 0.90f,
+            size.height * 0.90f,
+        )
+        drawLine(tint, handleStart, handleEnd, 2.5f)
+
+        // Handle cap — small circle at end
+        drawCircle(
+            color = tint.copy(alpha = 0.3f),
+            radius = 1.5f,
+            center = handleEnd,
+        )
     }
 }
 
 @Composable
 private fun DotsIcon() {
     Canvas(Modifier.size(24.dp)) {
-        val cx = size.width / 2; val cy = size.height / 2; val r = 3f; val gap = 10f
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val gap = 8f
         listOf(cx - gap, cx, cx + gap).forEach { x ->
-            drawCircle(Color(0xCCFFFFFF), radius = r, center = Offset(x, cy))
+            drawCircle(Color(0xCCFFFFFF), radius = 3f, center = Offset(x, cy))
         }
     }
 }
