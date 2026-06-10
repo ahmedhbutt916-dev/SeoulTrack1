@@ -53,7 +53,10 @@ val OledTextMain = Color(0xFFE8EAF0)
 val OledTextMuted = Color(0xFF6B7280)
 
 // Frosted glass backdrop tint (same as BgBase at ~70% opacity)
-val FrostedBackdrop = Color(0xB30A0E1A)  // rgba(10,14,26,0.70)
+val FrostedBackdrop = Color(0xB30A0E1A)  // rgba(10,14,26,0.70) — for backdrop blur layer
+
+// Frosted glass tint (lighter — for nav bar over blur, ~55% opacity)
+val FrostedTint = Color(0x8C0A0E1A)  // rgba(10,14,26,0.55) — lets blurred colors bleed through
 
 // Ambient orb colors
 val OrbRed    = Color(0xFFFF4D6D)

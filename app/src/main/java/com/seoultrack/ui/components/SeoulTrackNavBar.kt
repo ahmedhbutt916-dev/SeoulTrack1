@@ -136,12 +136,14 @@ fun SeoulTrackNavBar(
                     }
                 }
                 .clip(navShape)
-                // Frosted backdrop — dark tinted layer that obscures content behind
+                // Frosted glass tint — lighter since backdrop blur handles the obscuring
+                // On API 31+ the MainScreen backdrop blur provides the real blur effect,
+                // so this just needs a subtle tint. On older APIs, this is the only frosted layer.
                 .background(
-                    FrostedBackdrop,  // ~70% opaque dark tint for frosted glass look
+                    FrostedTint,  // ~55% opacity — blurred colors bleed through
                     shape = navShape,
                 )
-                // Glass gradient overlay on top of the frosted backdrop
+                // Glass gradient overlay
                 .background(
                     Brush.linearGradient(
                         colorStops = arrayOf(
@@ -424,9 +426,9 @@ private fun SearchBubbleFab(
                 }
             }
             .clip(fabShape)
-            // Frosted backdrop — dark tinted layer
+            // Frosted glass tint — lighter for backdrop blur
             .background(
-                FrostedBackdrop,  // ~70% opaque dark tint for frosted glass look
+                FrostedTint,  // ~55% opacity — blurred colors bleed through
                 shape = fabShape,
             )
             // Glass gradient overlay
