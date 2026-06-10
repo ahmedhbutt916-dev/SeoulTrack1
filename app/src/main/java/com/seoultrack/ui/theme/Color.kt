@@ -52,6 +52,9 @@ val OledGlassBorder = Color(0x14FFFFFF)
 val OledTextMain = Color(0xFFE8EAF0)
 val OledTextMuted = Color(0xFF6B7280)
 
+// Frosted glass backdrop tint (same as BgBase at ~70% opacity)
+val FrostedBackdrop = Color(0xB30A0E1A)  // rgba(10,14,26,0.70)
+
 // Ambient orb colors
 val OrbRed    = Color(0xFFFF4D6D)
 val OrbBlue   = Color(0xFF4D9FFF)
