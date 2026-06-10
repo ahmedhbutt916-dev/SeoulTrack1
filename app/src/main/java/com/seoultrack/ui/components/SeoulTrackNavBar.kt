@@ -110,30 +110,7 @@ fun SeoulTrackNavBar(
         // ── LEFT: Navigation pill bar ───────────────────────────────────────────
         val navShape = if (navCollapsed) CircleShape else RoundedCornerShape(30.dp)
 
-        // ── Floating shadow behind the nav bar ────────────────────────────
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .then(
-                    if (navCollapsed) Modifier.size(60.dp)
-                    else Modifier
-                        .fillMaxWidth()
-                        .padding(end = 76.dp)
-                )
-                .heightIn(min = 60.dp, max = 60.dp)
-                .drawBehind {
-                    // Soft floating shadow — dark blurred ellipse
-                    val cr = if (navCollapsed) size.minDimension / 2f else 30.dp.toPx()
-                    drawRoundRect(
-                        color = Color(0x55000000),
-                        topLeft = Offset(0f, 6.dp.toPx()),
-                        size = Size(size.width, size.height),
-                        cornerRadius = CornerRadius(cr, cr),
-                    )
-                }
-        )
-
-        // ── Main glass nav bar ────────────────────────────────────────────
+        // ── Main glass nav bar (truly floating — no solid background behind it) ──
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -144,16 +121,31 @@ fun SeoulTrackNavBar(
                         .padding(end = 76.dp)  // leave room for search bubble
                 )
                 .heightIn(min = 60.dp, max = 60.dp)
+                .drawBehind {
+                    // Soft drop shadow — just a subtle blurred glow, NOT a solid rectangle
+                    val cr = if (navCollapsed) size.minDimension / 2f else 30.dp.toPx()
+                    // Multiple layered semi-transparent shadows for a soft blur effect
+                    for (i in 3 downTo 1) {
+                        val alpha = 0.06f * i  // gets lighter as it spreads
+                        val offset = (i * 2).dp.toPx()
+                        drawRoundRect(
+                            color = Color.Black.copy(alpha = alpha),
+                            topLeft = Offset(0f, offset),
+                            size = Size(size.width, size.height),
+                            cornerRadius = CornerRadius(cr, cr),
+                        )
+                    }
+                }
                 .clip(navShape)
-                // Glass background — matches the CSS gradient exactly
+                // Glass background — more transparent so content shows through
                 .background(
                     Brush.linearGradient(
                         colorStops = arrayOf(
-                            0.00f to Color(0x38FFFFFF),
-                            0.25f to Color(0x1AFFFFFF),
-                            0.50f to Color(0x29FFFFFF),
-                            0.75f to Color(0x0FFFFFFF),
-                            1.00f to Color(0x21FFFFFF),
+                            0.00f to Color(0x28FFFFFF),
+                            0.25f to Color(0x12FFFFFF),
+                            0.50f to Color(0x1EFFFFFF),
+                            0.75f to Color(0x0AFFFFFF),
+                            1.00f to Color(0x18FFFFFF),
                         )
                     ),
                     shape = navShape,
@@ -409,36 +401,33 @@ private fun SearchBubbleFab(
     )
     val fabShape = RoundedCornerShape(fabRadius)
 
-    // ── Floating shadow behind the search bubble ──────────────────────────
+    // ── Main glass search bubble (truly floating — no solid background) ────
     Box(
         modifier = modifier
             .width(fabWidth)
             .height(60.dp)
             .drawBehind {
-                // Soft floating shadow
-                drawRoundRect(
-                    color = Color(0x55000000),
-                    topLeft = Offset(0f, 6.dp.toPx()),
-                    size = Size(size.width, size.height),
-                    cornerRadius = CornerRadius(fabRadius.toPx(), fabRadius.toPx()),
-                )
+                // Soft layered drop shadow — no solid block
+                for (i in 3 downTo 1) {
+                    val alpha = 0.06f * i
+                    val offset = (i * 2).dp.toPx()
+                    drawRoundRect(
+                        color = Color.Black.copy(alpha = alpha),
+                        topLeft = Offset(0f, offset),
+                        size = Size(size.width, size.height),
+                        cornerRadius = CornerRadius(fabRadius.toPx(), fabRadius.toPx()),
+                    )
+                }
             }
-    )
-
-    // ── Main glass search bubble ──────────────────────────────────────────
-    Box(
-        modifier = modifier
-            .width(fabWidth)
-            .height(60.dp)
             .clip(fabShape)
             .background(
                 Brush.linearGradient(
                     colorStops = arrayOf(
-                        0.00f to Color(0x38FFFFFF),
-                        0.25f to Color(0x1AFFFFFF),
-                        0.50f to Color(0x29FFFFFF),
-                        0.75f to Color(0x0FFFFFFF),
-                        1.00f to Color(0x21FFFFFF),
+                        0.00f to Color(0x28FFFFFF),
+                        0.25f to Color(0x12FFFFFF),
+                        0.50f to Color(0x1EFFFFFF),
+                        0.75f to Color(0x0AFFFFFF),
+                        1.00f to Color(0x18FFFFFF),
                     )
                 )
             )

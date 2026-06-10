@@ -507,7 +507,7 @@ fun DiscoverScreen() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = 16.dp, bottom = 16.dp),
+            .padding(top = 16.dp, bottom = 100.dp),
     ) {
         // Logo / Greeting header
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -855,7 +855,7 @@ fun LibraryScreen() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = 16.dp, bottom = 16.dp),
+            .padding(top = 16.dp, bottom = 100.dp),
     ) {
         // Header
         Text(
@@ -984,7 +984,7 @@ fun ProfileScreen() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = 16.dp, bottom = 16.dp),
+            .padding(top = 16.dp, bottom = 100.dp),
     ) {
         // Profile header
         Column(
@@ -1186,7 +1186,7 @@ fun SettingsScreen() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(top = 16.dp, bottom = 16.dp),
+            .padding(top = 16.dp, bottom = 100.dp),
     ) {
         // Header
         Text(
